@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Admin | KobyCode</title>
+<script>try{document.documentElement.dataset.theme=localStorage.getItem("kc-theme")||(matchMedia("(prefers-color-scheme:dark)").matches?"dark":"light")}catch(e){}</script>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;600;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<style>
+.grid4{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));margin:16px 0}
+.stat b{display:block;font-size:30px;font-weight:800}.stat span{color:var(--mut);font-size:13px}
+.bars{display:flex;align-items:flex-end;gap:8px;height:120px;margin:10px 0 24px}
+.bars i{flex:1;background:var(--acc);border-radius:6px 6px 0 0;position:relative;min-height:3px}
+.bars small{position:absolute;bottom:-20px;left:0;right:0;text-align:center;color:var(--mut);font-size:11px;font-style:normal}
+.row{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px}
+.row:last-child{border:0}.row span:last-child{color:var(--mut);white-space:nowrap}
+.tag{background:var(--sig);color:#fff;border-radius:99px;padding:2px 10px;font-size:12px;font-weight:700;margin-left:8px}
+</style></head>
+<body>
+<header><a class="logo" href="index.html"><img class="wm-dark" src="kobycode-wordmark-dark.png" alt="KobyCode"><img class="wm-white" src="kobycode-wordmark-white.png" alt="KobyCode"></a><nav><b>Admin</b><span class="tag">Only you</span><button class="thb" id="th" aria-label="Switch theme">🌙</button></nav></header>
+<div class="wrap" id="out"><p class="mut">Loading...</p></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="app.js"></script>
+<script>
+const out=document.getElementById('out');
+const ago=t=>{const m=Math.round((Date.now()-new Date(t))/6e4);return m<1?'just now':m<60?m+' min ago':m<1440?Math.round(m/60)+' hr ago':Math.round(m/1440)+' d ago'};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const label={page_view:'Viewed',whatsapp_click:'Clicked WhatsApp button',plan_click:'Clicked plan',form_send:'Sent idea form'};
+function login(){out.innerHTML=`<div class="sheet" style="max-width:360px"><h2>Admin sign in</h2><button id="g" style="width:100%">Continue with Google</button></div>`;
+ document.getElementById('g').onclick=()=>sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:location.origin+location.pathname}})}
+async function load(){
+ const{data:{session}}=await sb.auth.getSession();
+ if(!session)return login();
+ const{data,error}=await sb.rpc('admin_stats');
+ if(error||!data){out.innerHTML='<h2>Not found</h2><p class="mut">This page is not available for your account.</p><button class="btn ghost" id="so">Sign out</button>';document.getElementById('so').onclick=async()=>{await sb.auth.signOut();location.reload()};return}
+ const mx=Math.max(1,...data.daily.map(x=>x.n));
+ out.innerHTML=`<div class="grid4">
+ <div class="card stat"><b>${data.total_users}</b><span>Total users</span></div>
+ <div class="card stat"><b>${data.new_today}</b><span>New today</span></div>
+ <div class="card stat"><b>${data.logins_today}</b><span>Logins today</span></div>
+ <div class="card stat"><b>${data.views_7d}</b><span>Page views (7 days)</span></div></div>
+ <div class="card"><b>Page views this week</b><div class="bars">${data.daily.map(x=>`<i style="height:${x.n/mx*100}%"><small>${esc(x.d)}</small></i>`).join('')||'<span class="mut">No data yet</span>'}</div></div>
+ <h2 style="margin-top:22px">Recent logins</h2><div class="card">${data.recent_logins.map(r=>`<div class="row"><span>${esc(r.email)} · ${esc(r.provider)}</span><span>${ago(r.last_sign_in_at)}</span></div>`).join('')||'<span class="mut">No logins yet</span>'}</div>
+ <h2>What's happening</h2><div class="card">${data.recent_events.map(e=>`<div class="row"><span>${esc(label[e.type]||e.type)} ${esc(e.detail||e.path||'')}</span><span>${ago(e.created_at)}</span></div>`).join('')||'<span class="mut">No activity yet</span>'}</div>
+ <p style="margin-top:20px"><button class="btn ghost" id="so">Sign out</button></p>`;
+ document.getElementById('so').onclick=async()=>{await sb.auth.signOut();location.reload()};
+}
+load();
+</script>
+</body></html>
